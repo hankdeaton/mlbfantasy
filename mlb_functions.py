@@ -68,5 +68,38 @@ def get_thebat_ros_proj():
 
     return hitproj_df
 
+
 # TODO: Write a function that takes in the full tabel of ROS projections, and calculates projected Fantasy Points,
 #  Fantasy Points per week, VORP and VORP per week (among other stats)
+def calc_advanced_metrics(hitproj_df):
+    # function that calculates advanced metrics (fantasy points, fantasy points per week, VORP, vorp per wwek, etc)
+
+    # Get the number of games left for each team
+    gamesleft_df = get_games_left()
+    gamesleft_df['ShortName'] = gamesleft_df["name"].str.split().str[-1] # TODO doesn't work for Red Sox, White Sox
+    gl_df = gamesleft_df[['ShortName', 'GL']]
+
+    # join games left on the projections
+    hitproj_df = hitproj_df.merge(gl_df, on='ShortName', how='left')
+
+    hitproj_df['FP'] = hitproj_df['1B'] + 2*hitproj_df['2B'] + 3*hitproj_df['3B'] + 5*hitproj_df['HR'] + \
+                       hitproj_df['R'] + hitproj_df['RBI'] + hitproj_df['SB'] + hitproj_df['BB'] - 0.5*hitproj_df['SO']
+
+    # Calc the percentage of remaining games they are expected to play in
+    hitproj_df['G/GL'] = hitproj_df['G'] / hitproj_df['GL']
+    # TODO limit this to 1.0 max
+
+    # calc the Fantasy Points per game
+    hitproj_df['FPpg'] = hitproj_df['FP'] / hitproj_df['G']
+
+    # Calc the fantasy points per week (assuming 6.2 games per week)
+    hitproj_df['FPpw'] = hitproj_df['FPpg'] * 6.2 * hitproj_df['G/GL']
+
+    # TODO Function to get the free agents in league, or calc average replacement level player (already written for draft??)
+
+    # TODO function to get Yahoo positions (already written for draft valuations??)
+
+    # TODO Calculate VORP per week
+
+
+    return hitproj_df
