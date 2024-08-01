@@ -1,5 +1,6 @@
 import json
 
+import numpy as np
 import pandas as pd
 import requests
 import statsapi
@@ -109,7 +110,15 @@ def calc_advanced_metrics(hitproj_df):
 
     # Get the number of games left for each team
     gamesleft_df = get_games_left()
-    gamesleft_df['ShortName'] = gamesleft_df["name"].str.split().str[-1]  # TODO doesn't work for Red Sox, White Sox
+    gamesleft_df['ShortName'] = gamesleft_df["name"].str.split().str[-1]
+    gamesleft_df['ShortName'] = np.where(
+        gamesleft_df['name'] == "Boston Red Sox",
+        'Red Sox', gamesleft_df['ShortName']
+    )
+    gamesleft_df['ShortName'] = np.where(
+        gamesleft_df['name'] == "Chicago White Sox",
+        'White Sox', gamesleft_df['ShortName']
+    )
     gl_df = gamesleft_df[['ShortName', 'GL']]
 
     # join games left on the projections
@@ -131,7 +140,7 @@ def calc_advanced_metrics(hitproj_df):
 
     # Calc the percentage of remaining games they are expected to play in
     hitproj_df['G/GL'] = hitproj_df['G'] / hitproj_df['GL']
-    # TODO limit this to 1.0 max
+    # hitproj_df = hitproj_df.clip(upper=pd.Series({'G/GL': 1}), axis=1) # TODO limit this to 1.0 max
 
     # calc the Fantasy Points per game
     hitproj_df['FPpg'] = hitproj_df['FP'] / hitproj_df['G']
