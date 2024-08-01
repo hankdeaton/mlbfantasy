@@ -6,6 +6,21 @@ import statsapi
 from bs4 import BeautifulSoup as bs
 
 
+def get_yahoo_positions():
+    # Function to create a table of player positions based on Yahoo fantasy baseball
+
+    pos_df = pd.read_csv("draft-tools/fp_hit.csv")  # Read in Fantasypros data (for positions)
+    pos_df["PlayerName"] = pos_df["Player"]
+    pos_df = pos_df[["PlayerName", "Positions", "Rank", "ADP"]]
+    pos_df['Positions'] = pos_df['Positions'].str.replace('LF', 'OF')
+    pos_df['Positions'] = pos_df['Positions'].str.replace('CF', 'OF')
+    pos_df['Positions'] = pos_df['Positions'].str.replace('RF', 'OF')
+
+    pos_df = pos_df[['PlayerName', 'Positions']]
+
+    return pos_df
+
+
 def get_games_left():
     # Function to get a pandas dataframe of each team's remaining number of games
 
