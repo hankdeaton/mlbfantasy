@@ -6,6 +6,24 @@ import statsapi
 from bs4 import BeautifulSoup as bs
 
 
+def get_replacements(all_df):
+    # Function to get the replacement level players theoretically left over
+
+    roster = ["C", "2B", "SS", "3B", "1B", "OF", "OF", "OF", "2B|SS", "1B|3B", "C|1B|2B|3B|SS|OF|DH", "C|1B|2B|3B|SS|OF|DH",
+              "C|1B|2B|3B|SS|OF|DH"]
+
+    # remove all the starters
+    for r in roster:
+        first12 = all_df[all_df['Positions'].str.contains(r)].index[0:12]  # Get the first 12 in the list
+
+        # print(first12)
+
+        all_df = all_df.drop(all_df.index[first12])  # remove the first 12
+        all_df = all_df.reset_index(drop=True)
+
+    return all_df
+
+
 def get_yahoo_positions():
     # Function to create a table of player positions based on Yahoo fantasy baseball
 
@@ -91,14 +109,25 @@ def calc_advanced_metrics(hitproj_df):
 
     # Get the number of games left for each team
     gamesleft_df = get_games_left()
-    gamesleft_df['ShortName'] = gamesleft_df["name"].str.split().str[-1] # TODO doesn't work for Red Sox, White Sox
+    gamesleft_df['ShortName'] = gamesleft_df["name"].str.split().str[-1]  # TODO doesn't work for Red Sox, White Sox
     gl_df = gamesleft_df[['ShortName', 'GL']]
 
     # join games left on the projections
     hitproj_df = hitproj_df.merge(gl_df, on='ShortName', how='left')
 
-    hitproj_df['FP'] = hitproj_df['1B'] + 2*hitproj_df['2B'] + 3*hitproj_df['3B'] + 5*hitproj_df['HR'] + \
-                       hitproj_df['R'] + hitproj_df['RBI'] + hitproj_df['SB'] + hitproj_df['BB'] - 0.5*hitproj_df['SO']
+    # Get list of positions in Yahoo, and left join on the projections DataFrame
+    y_pos = get_yahoo_positions() # TODO remove accents marks for joins
+    hitproj_df['PlayerName'] = hitproj_df['PlayerName'].str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode('utf-8')
+    hitproj_df = hitproj_df.merge(y_pos, on='PlayerName', how='left')
+    hitproj_df['Positions'] = hitproj_df['Positions'].fillna('N/A')
+
+    hitproj_df['FP'] = hitproj_df['1B'] + 2 * hitproj_df['2B'] + 3 * hitproj_df['3B'] + 5 * hitproj_df['HR'] + \
+                       hitproj_df['R'] + hitproj_df['RBI'] + hitproj_df['SB'] + hitproj_df['BB'] - 0.5 * hitproj_df[
+                           'SO']
+
+    # Sort on Fantasy Points
+    hitproj_df = hitproj_df.sort_values(by=['FP'], ascending=False)
+    hitproj_df = hitproj_df.reset_index(drop=True)
 
     # Calc the percentage of remaining games they are expected to play in
     hitproj_df['G/GL'] = hitproj_df['G'] / hitproj_df['GL']
@@ -111,10 +140,9 @@ def calc_advanced_metrics(hitproj_df):
     hitproj_df['FPpw'] = hitproj_df['FPpg'] * 6.2 * hitproj_df['G/GL']
 
     # TODO Function to get the free agents in league, or calc average replacement level player (already written for draft??)
-
-    # TODO function to get Yahoo positions (already written for draft valuations??)
+    reps_df = get_replacements(hitproj_df)
+    reps_df.to_csv("reps.csv")
 
     # TODO Calculate VORP per week
-
 
     return hitproj_df
