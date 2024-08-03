@@ -103,8 +103,17 @@ def get_thebat_ros_proj():
     return hitproj_df
 
 
-# TODO: Write a function that takes in the full tabel of ROS projections, and calculates projected Fantasy Points,
-#  Fantasy Points per week, VORP and VORP per week (among other stats)
+def calc_top_n(rep_df, N):
+    # Function to calculate average of the top N players at each position
+    ps = ["C", "1B", "2B", "3B", "SS", "OF"]
+    rpv = pd.DataFrame(columns=['Position', 'RPV'])
+    for p in ps:
+        rp = rep_df[rep_df['Positions'].str.contains(p)][0:N]  # get the first five from the replacement player list
+        rpv = rpv.append({'Position': p, 'RPV': np.mean(rp["FPpg"])}, ignore_index=True)
+
+    return rpv
+
+
 def calc_advanced_metrics(hitproj_df):
     # function that calculates advanced metrics (fantasy points, fantasy points per week, VORP, vorp per wwek, etc)
 
@@ -148,10 +157,22 @@ def calc_advanced_metrics(hitproj_df):
     # Calc the fantasy points per week (assuming 6.2 games per week)
     hitproj_df['FPpw'] = hitproj_df['FPpg'] * 6.2 * hitproj_df['G/GL']
 
-    # TODO Function to get the free agents in league, or calc average replacement level player (already written for draft??)
+    # Estimate the level of free agent in league (i.e. available replacement level player
     reps_df = get_replacements(hitproj_df)
     reps_df.to_csv("reps.csv")
 
-    # TODO Calculate VORP per week
+    # Calculate the replacement level value at each position
+    rep_val_df = calc_top_n(reps_df, 5)
+    rep_val_df = rep_val_df.sort_values(by=['RPV'], ascending=False)    # sort in descending order FPpg
+
+    # Calculate VORP stats
+    hitproj_df["VORPpg"] = 0
+    for index, row in rep_val_df.iterrows():
+        hitproj_df.loc[hitproj_df['Positions'].str.contains(row["Position"]), ["VORPpg"]] = hitproj_df["FPpg"] - row["RPV"]
+    hitproj_df["aVORPpg"] = hitproj_df["VORPpg"] * hitproj_df["G"] / hitproj_df["GL"]
+    hitproj_df["aVORPpw"] = hitproj_df["aVORPpg"] * 6.2
+    hitproj_df["VORPpw"] = hitproj_df["VORPpg"] * 6.2
+
+    hitproj_df = hitproj_df.sort_values(by=['aVORPpw'], ascending=False)
 
     return hitproj_df
